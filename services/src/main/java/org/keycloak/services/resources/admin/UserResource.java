@@ -34,22 +34,7 @@ import org.keycloak.events.EventBuilder;
 import org.keycloak.events.EventType;
 import org.keycloak.events.admin.OperationType;
 import org.keycloak.events.admin.ResourceType;
-import org.keycloak.models.AuthenticatedClientSessionModel;
-import org.keycloak.models.ClientModel;
-import org.keycloak.models.Constants;
-import org.keycloak.models.FederatedIdentityModel;
-import org.keycloak.models.GroupModel;
-import org.keycloak.models.IdentityProviderModel;
-import org.keycloak.models.KeycloakSession;
-import org.keycloak.models.ModelDuplicateException;
-import org.keycloak.models.ModelException;
-import org.keycloak.models.RealmModel;
-import org.keycloak.models.UserConsentModel;
-import org.keycloak.models.UserCredentialModel;
-import org.keycloak.models.UserLoginFailureModel;
-import org.keycloak.models.UserManager;
-import org.keycloak.models.UserModel;
-import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.*;
 import org.keycloak.models.utils.ModelToRepresentation;
 import org.keycloak.models.utils.RepresentationToModel;
 import org.keycloak.protocol.oidc.OIDCLoginProtocol;
@@ -121,6 +106,30 @@ public class UserResource {
 
     private AdminEventBuilder adminEvent;
     private UserModel user;
+
+    public class UriInfoHack extends KeycloakUriInfo {
+        public UriInfoHack(KeycloakSession session, KeycloakUriInfo delegate) {
+            super(session, delegate);
+        }
+
+        @Override
+        public URI getBaseUri() {
+            // check if we should use a fixed URL for Keycloak
+            String keycloakUrl = System.getenv("KEYCLOAK_URL");
+
+            if (keycloakUrl == null) {
+                return super.getBaseUri();
+            } else {
+                try {
+                    return new URI(keycloakUrl + "/auth");
+                }
+                catch (Exception ex) {
+                    return super.getBaseUri(); // fallback
+                }
+            }
+        }
+    }
+
 
     @Context
     protected ClientConnection clientConnection;
@@ -696,8 +705,9 @@ public class UserResource {
         ExecuteActionsActionToken token = new ExecuteActionsActionToken(user.getId(), expiration, actions, redirectUri, clientId);
 
         try {
-            UriBuilder builder = LoginActionsService.actionTokenProcessor(session.getContext().getUri());
-            builder.queryParam("key", token.serialize(session, realm, session.getContext().getUri()));
+            KeycloakUriInfo uriHack = new UriInfoHack(session, session.getContext().getUri());
+            UriBuilder builder = LoginActionsService.actionTokenProcessor(uriHack);
+            builder.queryParam("key", token.serialize(session, realm, uriHack));
 
             String link = builder.build(realm.getName()).toString();
 
@@ -709,7 +719,7 @@ public class UserResource {
 
             //audit.user(user).detail(Details.EMAIL, user.getEmail()).detail(Details.CODE_ID, accessCode.getCodeId()).success();
 
-            adminEvent.operation(OperationType.ACTION).resourcePath(session.getContext().getUri()).success();
+            adminEvent.operation(OperationType.ACTION).resourcePath(uriHack).success();
 
             return Response.ok().build();
         } catch (EmailException e) {
