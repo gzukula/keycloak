@@ -66,7 +66,7 @@
         <hibernate.core.version>5.3.7.Final</hibernate.core.version>
         <hibernate.c3p0.version>5.3.7.Final</hibernate.c3p0.version>
         <infinispan.version>9.4.3.Final</infinispan.version>
-        <jackson.version>2.9.5</jackson.version>
+        <jackson.version>2.10.3</jackson.version>
         <javax.mail.version>1.6.2</javax.mail.version>
         <jboss.logging.version>3.3.2.Final</jboss.logging.version>
         <jboss.logging.tools.version>2.1.0.Final</jboss.logging.tools.version>
